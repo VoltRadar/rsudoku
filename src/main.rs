@@ -32,7 +32,7 @@ impl SudokuValue {
     /// assert_eq!(SudokuValue::new('\t'), None)
     /// ```
     ///
-    fn new(value: char) -> Option<SudokuValue> {
+    fn from(value: char) -> Option<SudokuValue> {
         
         match value {
             '1'..='9' => {
@@ -50,12 +50,19 @@ impl SudokuValue {
     }
 
     /// Return if an Sudoku value is Known
-    ///
-    ///
     fn is_known(&self) -> bool{
         match self {
             Self::Known(_) => true,
             Self::Unknown(_) => false,
+        }
+    }
+}
+
+impl fmt::Display for SudokuValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Known(x) => {write!(f, "{}", x)}
+            Self::Unknown(_) => {write!(f, "{}", 'X')}
         }
     }
 }
@@ -89,7 +96,7 @@ impl SudokuBoard {
         for charater in board_string.chars() {
 
             // Make a Sudoku value from a character
-            match SudokuValue::new(charater) {
+            match SudokuValue::from(charater) {
                 
                 Some(value) => {
 
@@ -106,7 +113,7 @@ impl SudokuBoard {
 
                     spaces[row_index].push(value);
 
-                    if spaces.len() == 9 {
+                    if spaces[row_index].len() == 9 {
                         row_index += 1;
                         if row_index == 9 {
                             finished = true;
@@ -140,9 +147,62 @@ impl SudokuBoard {
 
 }
 
+impl fmt::Display for SudokuBoard {
 
+    /// Print the Sudoku board
+    /// 
+    /// The board consistes of the Sudoku Values, sperated by spaces, and
+    /// horizontoal lines
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut lines: Vec<String> = Vec::with_capacity(11);
+
+        let mut line_index = 0;
+        for line in &self.spaces {
+            
+            // Create a line containing sudoku values
+            lines.push(String::with_capacity(21));
+
+            for (space_index, space) in line.iter().enumerate() {
+                
+                if space_index == 8 {
+                    lines[line_index].push_str(&space.to_string());
+                }
+
+                else {
+                    lines[line_index].push_str(&format!("{} ", space));
+
+                    // Add a horizontal line character to make boxes
+                    if (space_index + 1) % 3 == 0 {
+                        lines[line_index].push_str("| ")
+                    }
+                }
+            }
+
+            // Insert two horizontal lines
+            if line_index == 2 || line_index == 6 {
+                lines.push(String::from("---------------------"));
+                line_index += 1
+            }
+
+            line_index += 1;
+        }
+
+        for (line_index, line) in lines.iter().enumerate() {
+            if line_index < lines.len() - 2 {
+                writeln!(f, "{}", line)?;
+            }
+
+            else {
+                writeln!(f, "{}", line)?
+            }
+        }
+        
+        fmt::Result::Ok(())
+    }
+}
 
 fn main() {
     let s = SudokuBoard::new("easy").unwrap();
-    dbg!(s);
+
+    println!("{}", s);
 }
