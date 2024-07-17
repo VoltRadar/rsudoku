@@ -1,8 +1,7 @@
-use std::{fmt, fs, io, path};
+use std::{collections::VecDeque, fmt, fs, io, path, time};
 
-
-/// All of the results of removing a possible value from a space. 
-/// 
+/// All of the results of removing a possible value from a space.
+///
 /// Possible value was in the space,
 /// The possible value wasn't in the space,
 /// The value is now known. The SudokuValue is now a Known type
@@ -14,28 +13,26 @@ enum SudokuValueResult {
 
 /**
  * A Sudoku space value
- * 
+ *
  * Known with a digit,
  * Unknown with a vector of possible tests
  */
 #[derive(PartialEq, Debug)]
 enum SudokuValue {
     Known(usize),
-    Unknown(Vec<usize>)
+    Unknown(Vec<usize>),
 }
 
 impl SudokuValue {
-
-    
     /// Create a new Sudoku value from a character.
-    /// 
+    ///
     /// If 'value' is a digit '1' to '9', then it will return a Known value
-    /// 
+    ///
     /// If 'value' is a letter a-z or A-Z or '0' then it'll return an
     /// Unknown value with possible values 1 to 9
-    /// 
+    ///
     /// All other values return None
-    /// 
+    ///
     /// ```
     /// assert_eq!(SudokuValue::new('3'), Some(Known(3)))
     /// assert_eq!(SudokuValue::new('0'), Some(Unknown(vec![1,2,3,4,5,6,7,8,9])))
@@ -45,14 +42,13 @@ impl SudokuValue {
     /// ```
     ///
     fn from(value: char) -> Option<SudokuValue> {
-        
         match value {
             '1'..='9' => {
                 return Some(SudokuValue::Known(value.to_digit(10).unwrap() as usize));
-            },
-            
+            }
+
             'a'..='z' | 'A'..='Z' | '0' => {
-                return Some(SudokuValue::Unknown(vec![1,2,3,4,5,6,7,8,9]));
+                return Some(SudokuValue::Unknown(vec![1, 2, 3, 4, 5, 6, 7, 8, 9]));
             }
 
             _ => {
@@ -62,34 +58,32 @@ impl SudokuValue {
     }
 
     /// Return if an Sudoku value is Known
-    fn is_known(&self) -> bool{
+    fn is_known(&self) -> bool {
         match self {
             Self::Known(_) => true,
             Self::Unknown(_) => false,
         }
     }
 
-    /// Removes a possible value from a sudoku space. Has multiple 
+    /// Removes a possible value from a sudoku space. Has multiple
     /// outputs:
-    /// 
+    ///
     /// For an Unknown space:
     /// - If possible_value_to_remove isn't in the space, does nothing.
     /// - If it is, value if removed, and SudokuValue is turned into Known
     ///   if only one unknown value exists
-    /// 
+    ///
     /// For a Known space:
     /// - If possible_value_to_remove not the known value, returns
     ///   `PossibleValueAlreadyRemoved`
     /// - Else, return `Result::Err(())`. Sudoku is unsolvable
-    /// 
-    /// 
+    ///
+    ///
     /// TODO: Make this work so you can reassign self
     ///     
     fn remove(&mut self, possible_value_to_remove: usize) -> Result<SudokuValueResult, ()> {
-        
         match self {
             Self::Known(value) => {
-                
                 if *value == possible_value_to_remove {
                     // Tried to remove a known value space. Sudoku is unsolvable
                     return Result::Err(());
@@ -100,17 +94,16 @@ impl SudokuValue {
 
             Self::Unknown(possible_values) => {
                 let possible_index = possible_values
-                    .iter().
-                    position(|&x| x == possible_value_to_remove);
+                    .iter()
+                    .position(|&x| x == possible_value_to_remove);
 
                 match possible_index {
-                    None => {return Result::Ok(SudokuValueResult::PossibleValueAlreadyRemoved)}
-                    
+                    None => return Result::Ok(SudokuValueResult::PossibleValueAlreadyRemoved),
+
                     Some(index) => {
-                
                         // Remove the possible value from the vector
                         possible_values.swap_remove(index);
-                        
+
                         // Check the length, to see if the value can be known
                         if possible_values.len() == 1 {
                             *self = SudokuValue::Known(possible_values[0]);
@@ -118,7 +111,6 @@ impl SudokuValue {
                         } else {
                             return Result::Ok(SudokuValueResult::PossibleValueRemoved);
                         }
-                    
                     }
                 }
             }
@@ -129,8 +121,12 @@ impl SudokuValue {
 impl fmt::Display for SudokuValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Known(x) => {write!(f, "{}", x)}
-            Self::Unknown(_) => {write!(f, "{}", 'X')}
+            Self::Known(x) => {
+                write!(f, "{}", x)
+            }
+            Self::Unknown(_) => {
+                write!(f, "{}", 'X')
+            }
         }
     }
 }
@@ -143,13 +139,12 @@ impl fmt::Display for SudokuValue {
 #[derive(Debug)]
 struct SudokuBoard {
     spaces: Vec<Vec<SudokuValue>>,
-    empty_spaces: usize
+    empty_spaces: usize,
 }
 
 impl SudokuBoard {
-
     /// Create a new sudoku board from a file
-    /// 
+    ///
     /// `board_filename` should exclude the `boards` directory
     fn new(board_filename: &str) -> io::Result<Self> {
         let mut path = path::PathBuf::from("boards");
@@ -166,16 +161,12 @@ impl SudokuBoard {
         let mut known_spaces = 0;
 
         for charater in board_string.chars() {
-
             // Make a Sudoku value from a character
             match SudokuValue::from(charater) {
-                
                 Some(value) => {
-
                     if value.is_known() {
                         known_spaces += 1;
-                    }
-                    else {
+                    } else {
                         empty_spaces += 1;
                     }
 
@@ -196,7 +187,7 @@ impl SudokuBoard {
 
                 None => {}
             }
-            
+
             // Stop processing file if you've filled the board
             if finished {
                 break;
@@ -206,13 +197,13 @@ impl SudokuBoard {
         if known_spaces + empty_spaces != 81 {
             return io::Result::Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
-                "Failed to fill board"
-            ))
+                "Failed to fill board",
+            ));
         }
-        
-        return io::Result::Ok(SudokuBoard{
+
+        return io::Result::Ok(SudokuBoard {
             spaces,
-            empty_spaces
+            empty_spaces,
         });
     }
 
@@ -221,11 +212,13 @@ impl SudokuBoard {
         return self.empty_spaces == 0;
     }
 
+    /// Static method
+    ///
     /// Returns the cordients of the spaces adjecent to the input space
-    /// 
+    ///
     /// An Adjectent space is a space that is in the same row, column, or
     /// box. All entries are unique
-    /// 
+    ///
     /// (0, 0) is top left, (8, 0) is top right
     fn get_adjecent_spaces(point: (usize, usize)) -> Vec<(usize, usize)> {
         let mut adjecent_spaces = Vec::with_capacity(20);
@@ -264,12 +257,62 @@ impl SudokuBoard {
         return adjecent_spaces;
     }
 
+    /// Function that checks all known spaces and removes their value from
+    /// adjectent unknown spaces.
+    ///
+    /// May also change unknown spaces to known spaces, and also removes
+    /// these values from adjectent spaces
+    fn inital_check(&mut self) -> Result<(), String> {
+        // Queue of known points. The 3 value tuple is it's row index,
+        // column index, and space value
+        let mut known_points_to_check: VecDeque<(usize, usize, usize)> = VecDeque::new();
+
+        // Add all the currently known spaces to the queue
+        for (i, row) in self.spaces.iter().enumerate() {
+            for (j, space) in row.iter().enumerate() {
+                if let SudokuValue::Known(space_value) = space {
+                    known_points_to_check.push_back((i, j, *space_value));
+                }
+            }
+        }
+
+        while !known_points_to_check.is_empty() {
+            let (x, y, space_value) = known_points_to_check.pop_front().expect("Queue is empty!");
+
+            for adjecent_space in SudokuBoard::get_adjecent_spaces((x, y)) {
+                // Remove it, and get the result of removeing it
+                let remove_result =
+                    self.spaces[adjecent_space.0][adjecent_space.1].remove(space_value);
+
+                if remove_result.is_err() {
+                    return Result::Err(String::from("Sudoku board is unsolvable"));
+                }
+
+                if let SudokuValueResult::ValueNowKnown = remove_result.unwrap() {
+                    self.empty_spaces -= 1;
+
+                    match self.spaces[adjecent_space.0][adjecent_space.1] {
+                        SudokuValue::Known(adjecent_space_value) => {
+                            known_points_to_check.push_back((
+                                adjecent_space.0,
+                                adjecent_space.1,
+                                adjecent_space_value,
+                            ));
+                        }
+
+                        _ => panic!("Space should be Known"),
+                    }
+                }
+            }
+        }
+
+        return Result::Ok(());
+    }
 }
 
 impl fmt::Display for SudokuBoard {
-
     /// Print the Sudoku board
-    /// 
+    ///
     /// The board consistes of the Sudoku Values, sperated by spaces, and
     /// horizontoal lines
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -277,17 +320,13 @@ impl fmt::Display for SudokuBoard {
 
         let mut line_index = 0;
         for line in &self.spaces {
-            
             // Create a line containing sudoku values
             lines.push(String::with_capacity(21));
 
             for (space_index, space) in line.iter().enumerate() {
-                
                 if space_index == 8 {
                     lines[line_index].push_str(&space.to_string());
-                }
-
-                else {
+                } else {
                     lines[line_index].push_str(&format!("{} ", space));
 
                     // Add a horizontal line character to make boxes
@@ -313,15 +352,29 @@ impl fmt::Display for SudokuBoard {
                 write!(f, "{}", line)?;
             }
         }
-        
+
         fmt::Result::Ok(())
     }
 }
 
-fn main() {
-    let s = SudokuBoard::new("easy").unwrap();
+fn main() -> Result<(), String> {
+    let mut s = SudokuBoard::new("medium").unwrap();
+
+    println!("{}", s);
+    println!("");
+
+    let start = time::Instant::now();
+    s.inital_check()?;
+    let duration = start.elapsed();
+
+    println!("{}us", duration.as_micros());
 
     println!("{}", s);
 
-    println!("{:?}", SudokuBoard::get_adjecent_spaces((6, 7)));
+    if s.is_solved() {
+        println!("Solved!");
+        return Result::Ok(());
+    } else {
+        return Result::Err(String::from("Not solved!"));
+    }
 }
