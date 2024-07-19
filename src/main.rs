@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, fmt, fs, io, path, time};
+use std::{collections::{btree_map::Values, VecDeque}, fmt, fs, io, path, time};
 
 /// All of the results of removing a possible value from a space.
 ///
@@ -77,9 +77,6 @@ impl SudokuValue {
     /// - If possible_value_to_remove not the known value, returns
     ///   `PossibleValueAlreadyRemoved`
     /// - Else, return `Result::Err(())`. Sudoku is unsolvable
-    ///
-    ///
-    /// TODO: Make this work so you can reassign self
     ///     
     fn remove(&mut self, possible_value_to_remove: usize) -> Result<SudokuValueResult, ()> {
         match self {
@@ -308,6 +305,209 @@ impl SudokuBoard {
 
         return Result::Ok(());
     }
+
+    /// Returns a 2d vector of points.
+    /// 
+    /// Each vector of points are the postion of values in a single row,
+    /// column, or 3x3 box
+    fn get_all_full_corrdinates() -> Vec<Vec<(usize, usize)>> {
+        let mut output: Vec<Vec<(usize, usize)>> = Vec::with_capacity(27);
+
+        // Add rows and columns
+        for i in 0..9 {
+            let mut row: Vec<(usize, usize)> = Vec::with_capacity(9);
+            let mut column: Vec<(usize, usize)> = Vec::with_capacity(9);
+            for j in 0..9 {
+                row.push((i, j));
+                column.push((j, i));
+            }
+
+            output.push(row);
+            output.push(column);
+        }
+
+        // Add 3 by 3 boxes
+        for box_x_index in 0..3 {
+            for box_y_index in 0..3 {
+
+                let mut sudoku_box: Vec<(usize, usize)> = Vec::with_capacity(9);
+                
+                for i in 0..9 {
+                    sudoku_box.push(
+                        (
+                            box_x_index * 3 + i % 3,
+                            box_y_index * 3 + i / 3
+                        )
+                    )
+                }
+
+                output.push(sudoku_box);
+            }
+        }
+
+
+        return output;
+    }
+
+    /// Fill in a sudoku space with a value
+    /// 
+    /// Also remove this value from adject sudoku spaces, and if the value
+    /// is now known, recesivlly removes and checks new known values
+    /// 
+    /// If space is already known, checks to see if the value is correct,
+    /// then proform the checks as above
+    /// 
+    /// Returns the number of new known spaces
+    /// 
+    /// If filling in any space is invalid, then return Result::Err
+    fn fill_space(& mut self, point: (usize, usize), value: usize) -> Result<usize, String> {
+
+        let mut new_known = 0;
+        
+        // Fill in the space
+        match &self.spaces[point.0][point.1] {
+            
+            SudokuValue::Known(x) => {
+                if *x != value {
+                    return Result::Err(String::from("Tried to overright in a known value"));
+                } else {
+                    // The function should still check adjectent values and remove these.
+                }
+            }
+
+            SudokuValue::Unknown(possible) => {
+                if possible.contains(&value) {
+                    
+                    // Repalce the value
+                    self.spaces[point.0][point.1] = SudokuValue::Known(value);
+                    new_known += 1;
+                    self.empty_spaces -= 1;
+
+                } else {
+                    return Result::Err(String::from("Not a possible value"));
+                }
+            }
+        }
+
+        for point_to_check in SudokuBoard::get_adjecent_spaces(point) {
+
+            let space_to_check = &mut self.spaces[point_to_check.0][point_to_check.1];
+            
+            // Remove known value from possible values, and check the result
+            let removed_result = space_to_check.remove(value);
+
+            if removed_result.is_err() {
+                return Result::Err(String::from("Sudoku is unsolvable"));
+            }
+
+            // If the value can now be known, add it to a vector to be checked later
+            if let SudokuValueResult::ValueNowKnown = removed_result.unwrap() {
+                
+                if let SudokuValue::Known(checked_known_value) = space_to_check {
+                    let owned_checked_known_value = checked_known_value.clone();
+                    
+                    self.fill_space(point_to_check, owned_checked_known_value)?;
+                    
+                }
+
+                new_known += 1;
+                self.empty_spaces -= 1;
+                
+            }
+        }
+        
+        return Result::Ok(new_known);
+    }
+
+    /// Narrow down the possible values of empty spaces, filling in any
+    /// ones it can
+    /// 
+    /// Does the following tests:
+    ///
+    /// - Check each row, column, and box. If there's exactly one space
+    /// that can have a digit, fill in that digit. If zero places can have
+    /// that digit, return an error
+    /// 
+    /// Returns the number of new known spaces. Further narrowing may be
+    /// done if the result is higher then zero
+    /// 
+    /// If the sudoku is unsolvable, return an errors
+    fn narrow(&mut self) -> Result<usize, String> {
+
+        let mut new_spaces_known = 0;
+
+        // For each row, column, and box
+        for space_set_corrdinates in SudokuBoard::get_all_full_corrdinates() {
+            
+            'values: for value in 1..=9 {
+                
+                // Possition of unknown value to fill in
+                let mut unknown_value_to_fill_in: Option<(usize, usize)> = None;
+
+                for point in &space_set_corrdinates {
+                    match &self.spaces[point.0][point.1] {
+                        
+                        // Check the next value if known value already in the set
+                        SudokuValue::Known(known_value) => {
+                            if *known_value == value {
+                                continue 'values;
+                            }
+                        }
+
+                        SudokuValue::Unknown(possible_values) => {
+                            if possible_values.contains(&value) {
+                                match unknown_value_to_fill_in {
+
+                                    // More than one unknown space with
+                                    // the same possible value, check
+                                    // next value
+                                    Some(_) => {continue 'values;} 
+                                    None => {
+                                        unknown_value_to_fill_in = Some(*point)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                match unknown_value_to_fill_in {
+                    // There exists a possible space in a row, column, or
+                    // box that couldn't contain a value not already known
+                    // in that row, column, or box. This is invalid, so
+                    // the sudoku is unsolvable
+                    None => {
+                        return Result::Err(
+                            String::from("Sudoku is unsolvable")
+                        )
+                    }
+
+                    // This value can be filled in. Return any error it
+                    // might raise. Update the number of new spaces known
+                    Some(point) => {
+                        new_spaces_known += self.fill_space(point, value)?;
+                    }
+                }
+
+            }
+        }
+
+        return Result::Ok(new_spaces_known);
+    }
+
+    /// Repeats narrowing until no new spaces are found, or until solved.
+    /// 
+    /// Narrows at least once
+    /// 
+    /// Returns if sudoku is now solved
+    /// 
+    /// Returns Err if sudoku is unsolvable
+    fn narrow_full(&mut self) -> Result<bool, String> {
+        
+        while self.narrow()? > 0 {};
+
+        return Result::Ok(self.is_solved());
+    }
 }
 
 impl fmt::Display for SudokuBoard {
@@ -358,16 +558,18 @@ impl fmt::Display for SudokuBoard {
 }
 
 fn main() -> Result<(), String> {
-    let mut s = SudokuBoard::new("medium").unwrap();
+    let mut s = SudokuBoard::new("medium2").unwrap();
 
     println!("{}", s);
     println!("");
 
     let start = time::Instant::now();
     s.inital_check()?;
+    s.narrow_full()?;
     let duration = start.elapsed();
 
     println!("{}us", duration.as_micros());
+    println!();
 
     println!("{}", s);
 
@@ -377,4 +579,6 @@ fn main() -> Result<(), String> {
     } else {
         return Result::Err(String::from("Not solved!"));
     }
+
+    // TODO: Time medumn solve, add check hard puzzle
 }
