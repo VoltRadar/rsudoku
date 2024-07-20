@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, fmt, fs, io, path, cmp::Ordering};
+use std::{cmp::Ordering, collections::VecDeque, fmt, fs, io, path, time};
 
 /// All of the results of removing a possible value from a space.
 ///
@@ -137,6 +137,7 @@ impl fmt::Display for SudokuValue {
 struct SudokuBoard {
     spaces: Vec<Vec<SudokuValue>>,
     empty_spaces: usize,
+    initalised: bool
 }
 
 impl SudokuBoard {
@@ -193,6 +194,7 @@ impl SudokuBoard {
         return io::Result::Ok(SudokuBoard {
             spaces,
             empty_spaces,
+            initalised: false
         });
     }
 
@@ -252,6 +254,10 @@ impl SudokuBoard {
     /// May also change unknown spaces to known spaces, and also removes
     /// these values from adjectent spaces
     fn inital_check(&mut self) -> Result<(), String> {
+
+        // Set self be initalised. This method only needs to be run once on each board
+        self.initalised = true;
+
         // Queue of known points. The 3 value tuple is it's row index,
         // column index, and space value
         let mut known_points_to_check: VecDeque<(usize, usize, usize)> = VecDeque::new();
@@ -560,8 +566,6 @@ impl SudokuBoard {
 
                                 best_guess = new_guess;
 
-                                println!("New best guess!");
-
                                 continue;
                             },
                             Ordering::Less => continue, // Best guess solves more spaces then new guess
@@ -572,8 +576,6 @@ impl SudokuBoard {
                             Ordering::Greater => {
                                 // New guess removes more possible values then old guess
                                 best_guess = new_guess;
-
-                                println!("New best guess!");
 
                                 continue;
                             }
@@ -586,6 +588,84 @@ impl SudokuBoard {
         }
 
         return (best_guess.point, best_guess.guess);
+    }
+
+    /// Tries to solve the sudoku
+    /// 
+    /// This is done with a comination of algormiths norrowing down the
+    /// possible values each space could be, and random guessing and
+    /// recersving trying to solve that board
+    /// 
+    /// Returns if the sudoku was solved
+    fn solve(&mut self) -> bool {
+
+        // Proform some quick checks to fill in easy values and remove
+        // possible values for each space
+
+        if !self.initalised {
+            if let Result::Err(_) = self.inital_check() {
+                return false;
+            }
+        }
+        if self.is_solved() {
+            return true;
+        }
+
+        if let Result::Err(_) = self.narrow_full() {
+            return false;
+        }
+        if self.is_solved() {
+            return true;
+        }
+
+        loop {
+            // Get most impactful guess
+            let (point, guess_value) = self.most_impactful_guess();
+
+            let mut guess_board = self.clone();
+
+            if guess_board.fill_space(point, guess_value).is_ok() {
+                // Try to solve the board with a guess
+                if guess_board.solve() {
+                    // Set this board to the guess board if guess board was solved
+                    *self = guess_board;
+                    return true;
+                }
+            }
+
+            // The guess was wrong remove it
+            let result_of_removeal =  self.spaces[point.0][point.1].remove(guess_value);
+
+            if result_of_removeal.is_err() {
+                return false;
+            }
+
+            if let SudokuValueResult::ValueNowKnown = result_of_removeal.expect("Checked for error above") {
+                // The guess was wrong, but now the guessed space is known
+                self.empty_spaces -= 1;
+
+                if let SudokuValue::Known(point_new_value) = self.get_space(point) {
+                    if self.fill_space(point, *point_new_value).is_err() {
+                        // Filling in the space resulted in an unsolvable sudoku
+                        return false;
+                    }
+
+                    if self.is_solved() {
+                        return true;
+                    }
+
+                    // Do more algormic removing
+                    if self.narrow_full().is_err() {
+                        return false;
+                    }
+                    
+                    if self.is_solved() {
+                        return true;
+                    }
+                }
+
+            };
+        }
     }
 }
 
@@ -637,21 +717,17 @@ impl fmt::Display for SudokuBoard {
 }
 
 fn main() -> Result<(), String> {
-    let mut s = SudokuBoard::new("hard").unwrap();
+    let mut s = SudokuBoard::new("veryhard").unwrap();
 
     println!("{}", s);
     println!("");
 
-    s.inital_check()?;
-    s.narrow_full()?;
+    let start = time::Instant::now();
+    s.solve();
+    let duration = start.elapsed();
 
     println!("{}", s);
-    println!();
-
-    let (point, guess) = s.most_impactful_guess();
-
-    println!("{:?} -> {}", point, guess);
-    println!("{:?}", s.get_space(point));
+    println!("{}us", duration.as_micros());
 
     if s.is_solved() {
         println!("Solved!");
@@ -659,6 +735,4 @@ fn main() -> Result<(), String> {
     } else {
         return Result::Err(String::from("Not solved!"));
     }
-
-    // TODO: Time medumn solve, add check hard puzzle
 }
