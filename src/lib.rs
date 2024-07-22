@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, collections::VecDeque, fmt, fs, io, path};
+use std::{cmp::Ordering, collections::VecDeque, fmt, fs, io};
 
 /// All of the results of removing a possible value from a space.
 ///
@@ -137,18 +137,15 @@ impl fmt::Display for SudokuValue {
 pub struct SudokuBoard {
     spaces: Vec<Vec<SudokuValue>>,
     empty_spaces: usize,
-    initalised: bool,
+    initialized: bool,
 }
 
 impl SudokuBoard {
     /// Create a new sudoku board from a file
     ///
-    /// `board_filename` should exclude the `boards` directory
-    fn new(board_filename: &str) -> io::Result<Self> {
-        let mut path = path::PathBuf::from("boards");
-        path.push(board_filename);
-
-        let board_string = fs::read_to_string(path)?;
+    /// `board_filepath` should be a path to the board file
+    fn new(board_filepath: &str) -> io::Result<Self> {
+        let board_string = fs::read_to_string(board_filepath)?;
 
         let mut spaces = Vec::with_capacity(9);
 
@@ -194,7 +191,7 @@ impl SudokuBoard {
         return io::Result::Ok(SudokuBoard {
             spaces,
             empty_spaces,
-            initalised: false,
+            initialized: false,
         });
     }
 
@@ -255,7 +252,7 @@ impl SudokuBoard {
     /// these values from adjectent spaces
     fn inital_check(&mut self) -> Result<(), String> {
         // Set self be initalised. This method only needs to be run once on each board
-        self.initalised = true;
+        self.initialized = true;
 
         // Queue of known points. The 3 value tuple is it's row index,
         // column index, and space value
@@ -486,13 +483,13 @@ impl SudokuBoard {
     }
 
     /// Returns the guess with the most impact, which is the guess that
-    /// results in the most adject spaces being solved.
+    /// results in the most adjacent spaces being solved.
     ///
     /// The one with the most impact will always have the smallest number
     /// of possible values
     ///
     /// If there is a tie, pick the guess with the most possible value
-    /// removed from adject spaces as a result of the guess
+    /// removed from adjacent spaces as a result of the guess
     fn most_impactful_guess(&self) -> ((usize, usize), usize) {
         #[derive(Debug)]
         struct Impact {
@@ -519,19 +516,19 @@ impl SudokuBoard {
                     }
 
                     for possible_value in possible_values {
-                        // Check adject values
+                        // Check adjacent values
                         let mut other_spaces_solved_by_guess = 0;
                         let mut possible_values_removed_by_guess = 0;
 
-                        // Look at all spaces adject to the guess
+                        // Look at all spaces adjacent to the guess
                         for point in SudokuBoard::get_adjecent_spaces((i, j)) {
-                            if let SudokuValue::Unknown(adject_possible_values) =
+                            if let SudokuValue::Unknown(adjacent_possible_values) =
                                 self.get_space(point)
                             {
-                                // Is our guess one of the adject spaces possible values?
-                                if adject_possible_values.contains(possible_value) {
+                                // Is our guess one of the adjacent spaces possible values?
+                                if adjacent_possible_values.contains(possible_value) {
                                     possible_values_removed_by_guess += 1;
-                                    if adject_possible_values.len() == 2 {
+                                    if adjacent_possible_values.len() == 2 {
                                         other_spaces_solved_by_guess += 1;
                                     }
                                 }
@@ -551,7 +548,7 @@ impl SudokuBoard {
                         {
                             // Number of possible values for this point is
                             // less then best guess, so better, because
-                            // the guess is more likey to be correct
+                            // the guess is more likely to be correct
                             best_guess = new_guess;
                             continue;
                         }
@@ -591,16 +588,15 @@ impl SudokuBoard {
 
     /// Tries to solve the sudoku
     ///
-    /// This is done with a comination of algormiths norrowing down the
-    /// possible values each space could be, and random guessing and
-    /// recersving trying to solve that board
+    /// This is done with a combination of algorithms narrowing down the
+    /// possible values each space could be, and random guesses
     ///
     /// Returns if the sudoku was solved
     pub fn solve(&mut self) -> bool {
-        // Proform some quick checks to fill in easy values and remove
+        // Preform some quick checks to fill in easy values and remove
         // possible values for each space
 
-        if !self.initalised {
+        if !self.initialized {
             if let Result::Err(_) = self.inital_check() {
                 return false;
             }
@@ -631,15 +627,15 @@ impl SudokuBoard {
                 }
             }
 
-            // The guess was wrong remove it
-            let result_of_removeal = self.spaces[point.0][point.1].remove(guess_value);
+            // The guess was wrong; remove it
+            let result_of_removal = self.spaces[point.0][point.1].remove(guess_value);
 
-            if result_of_removeal.is_err() {
+            if result_of_removal.is_err() {
                 return false;
             }
 
             if let SudokuValueResult::ValueNowKnown =
-                result_of_removeal.expect("Checked for error above")
+                result_of_removal.expect("Checked for error above")
             {
                 // The guess was wrong, but now the guessed space is known
                 self.empty_spaces -= 1;
@@ -654,7 +650,7 @@ impl SudokuBoard {
                         return true;
                     }
 
-                    // Do more algormic removing
+                    // Do more algorithmic removing
                     if self.narrow_full().is_err() {
                         return false;
                     }
@@ -671,8 +667,8 @@ impl SudokuBoard {
 impl fmt::Display for SudokuBoard {
     /// Print the Sudoku board
     ///
-    /// The board consistes of the Sudoku Values, sperated by spaces, and
-    /// horizontoal lines
+    /// The board is made of the Sudoku Values, separated by spaces, and
+    /// horizontal lines
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut lines: Vec<String> = Vec::with_capacity(11);
 
@@ -718,7 +714,7 @@ impl fmt::Display for SudokuBoard {
 /// Load a sudoku board from the boards dir and tries to solve it
 ///
 /// Returns the resulting board, which may either be solved, checked via
-/// the is_solved() method, or partinally filled in, which means that it
+/// the is_solved() method, or partially filled in, which means that it
 /// was unsolvable
 ///
 /// param: board_name - filename of board in the `boards` dir

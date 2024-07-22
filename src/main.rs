@@ -1,15 +1,27 @@
-use std::time::Duration;
-use std::{fs, io, time};
+use std::{fs, io, time, env};
 
 use rsudoku;
 use rsudoku::SudokuBoard;
 
 /// Solve all the sudoku boards in the `boards` dir
 fn time_all_boards() -> io::Result<()> {
-    for board_entry in fs::read_dir("boards")? {
+
+    let boards_result = fs::read_dir("boards");
+    if boards_result.is_err() {
+        let error = boards_result.err().unwrap();
+        if error.kind() == io::ErrorKind::NotFound {
+            eprintln!("`boards` dir doesn't exist");
+            eprintln!("Run with a path as a argument solve a sudoku");
+            return io::Result::Ok(());
+        };
+
+        return io::Result::Err(error); 
+    }
+
+    for board_entry in boards_result.unwrap() {
         if let io::Result::Ok(dir_entry) = board_entry {
             let start = time::Instant::now();
-            let board = rsudoku::solve(&dir_entry.file_name().into_string().unwrap());
+            let board = rsudoku::solve(&dir_entry.path().to_str().unwrap());
 
             if board.is_ok() {
                 let solved = board.unwrap().is_solved();
@@ -49,15 +61,28 @@ fn time_all_boards() -> io::Result<()> {
 /// it took to solve, or prove unsolvable
 ///
 /// Returns io::Result::Err if the board couldn't be loaded
-fn time_solve(board_name: &str) -> io::Result<()> {
+fn time_solve(board_path: &str) -> io::Result<()> {
     let start = time::Instant::now();
 
-    let board: SudokuBoard = rsudoku::solve(board_name)?;
+    let board_result: Result<SudokuBoard, io::Error> = rsudoku::solve(board_path);
+    if board_result.is_err() {
+        let error = board_result.err().unwrap();
+        match error.kind() {
+            io::ErrorKind::NotFound => {
+                eprintln!("Can't find board at {board_path}");
+                return io::Result::Ok(());
+            }
+            _ => {return io::Result::Err(error);}
+        }
+    }
+
+    let board = board_result.ok().unwrap();
+
     let is_solved = board.is_solved();
 
     let time_taken = start.elapsed();
 
-    println!("Board {}", board_name);
+    println!("Board {}", board_path);
     println!("{}", board);
 
     if is_solved {
@@ -73,5 +98,14 @@ fn time_solve(board_name: &str) -> io::Result<()> {
 }
 
 fn main() -> io::Result<()> {
-    return time_all_boards();
+
+    let args: Vec<String> = env::args().collect();
+
+    if args.len() == 1 {
+        return time_all_boards();
+    }
+
+    else {
+        return time_solve(args.get(1).unwrap());
+    }
 }
