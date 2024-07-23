@@ -120,4 +120,28 @@ values of any space useful
 
 ## Performance
 
+### Boards
+
+I will use two boards to test performance. The first is the board `17`
+from this project. It's found on Wikipedia for Sudoku.
+
+The second is a blank board, with all spaces unknown. This should be
+harder, and will require a lot of guessing.
+
 ### Python version
+
+
+Results from timing my old Python solver for 5 minutes. All times in microseconds
+
+
+17 spaces board:
+- Trials: 32 886
+- Medium: **9 317us**
+- 10-quantiles: 7 673us, 7 957us, 8 511us, 9 190us, 9 317us, 9 436us,
+9 588us, 9 814us, 10 224us
+
+Blank board:
+- Trials: 6 484
+- Medium: **43 512us**
+- 10-quantiles: 41 546us, 42 958us, 43 133us, 43 278us, 43 512us,
+44 195us, 45 250us, 48 184us, 56 508us
