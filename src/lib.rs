@@ -472,6 +472,7 @@ impl SudokuBoard {
     ///
     /// Returns Err if sudoku is unsolvable
     fn narrow_full(&mut self) -> Result<bool, String> {
+
         while self.narrow()? > 0 && !self.is_solved() {}
 
         return Result::Ok(self.is_solved());
@@ -613,6 +614,13 @@ impl SudokuBoard {
         }
 
         loop {
+            if let Result::Err(_) = self.narrow_full() {
+                return false;
+            }
+            if self.is_solved() {
+                return true;
+            }
+
             // Get most impactful guess
             let (point, guess_value) = self.most_impactful_guess();
 
