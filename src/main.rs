@@ -97,7 +97,56 @@ fn time_solve(board_path: &str) -> io::Result<()> {
     return io::Result::Ok(());
 }
 
+
+fn time_single_board(path: &str) {
+
+    const DELTA: time::Duration = time::Duration::from_secs(300);
+
+    let start = time::Instant::now();
+    let end = start + DELTA;
+    
+    let mut times = Vec::new();
+    let mut count = 0;
+
+    while time::Instant::now() < end {
+
+        let start_solve = time::Instant::now();
+        let result = rsudoku::solve(path).unwrap();
+        let dur = start_solve.elapsed();
+
+        if result.is_solved() {
+            count += 1;
+        }
+
+        times.push(dur.as_micros());
+
+        if count % 3000 == 0 {
+            println!("{:?}", end - time::Instant::now())
+        }
+    }
+
+    println!("Trials: {}", times.len());
+
+    times.sort_unstable();
+
+    let mut ten_quantiles = Vec::new();
+
+    for quantile in 1..=9 {
+        let split = (quantile as f64) / 10_f64;
+        let index = (split * times.len() as f64).round() as usize;
+        ten_quantiles.push(times[index]);
+    }
+
+    println!("10-quantiles: {:?}", ten_quantiles);
+
+    println!("Medium: {}", ten_quantiles[4]);
+
+}
+
 fn main() -> io::Result<()> {
+
+    time_single_board("boards/blank");
+    return io::Result::Ok(());
 
     let args: Vec<String> = env::args().collect();
 

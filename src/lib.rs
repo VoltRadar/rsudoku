@@ -728,8 +728,8 @@ impl fmt::Display for SudokuBoard {
 /// param: board_name - filename of board in the `boards` dir
 ///
 /// Returns IO error if board can't be read.
-pub fn solve(board_name: &str) -> io::Result<SudokuBoard> {
-    let mut board = SudokuBoard::new(board_name)?;
+pub fn solve(board_path: &str) -> io::Result<SudokuBoard> {
+    let mut board = SudokuBoard::new(board_path)?;
 
     board.solve();
 

@@ -112,13 +112,13 @@ solved, however, that means the guess was wrong, and we can remove it from
 the possible values for the original board.
 
 From here, we can try narrowing the board again. While it's only one
-removed value, so the result of the narrowing will often be no change, this
-kind of recursive guessing has the highest complexity, with the total
+removed value, so the result of the narrowing will often have no effect, this
+kind of recursive guessing has a high complexity, with the total
 number of guesses possible equal to the product of the number of possible
 values in each unknown space. This makes any reduction of the possible
 values of any space useful
 
-## Performance
+## Performance results
 
 ### Boards
 
@@ -131,17 +131,102 @@ harder, and will require a lot of guessing.
 ### Python version
 
 
-Results from timing my old Python solver for 5 minutes. All times in microseconds
+Results from timing my old Python solver for 5 minutes. All times in
+microseconds (µs)
 
 
 17 spaces board:
 - Trials: 32 886
-- Medium: **9 317us**
-- 10-quantiles: 7 673us, 7 957us, 8 511us, 9 190us, 9 317us, 9 436us,
-9 588us, 9 814us, 10 224us
+- Medium: **9 317µs**
+- 10-quantiles: 7 673µs, 7 957µs, 8 511µs, 9 190µs, 9 317µs, 9 436µs,
+9 588µs, 9 814µs, 10 224µs
 
 Blank board:
 - Trials: 6 484
-- Medium: **43 512us**
-- 10-quantiles: 41 546us, 42 958us, 43 133us, 43 278us, 43 512us,
-44 195us, 45 250us, 48 184us, 56 508us
+- Medium: **43 512µs**
+- 10-quantiles: 41 546µs, 42 958µs, 43 133µs, 43 278µs, 43 512µs,
+44 195µs, 45 250µs, 48 184µs, 56 508µs
+
+### Rust version
+
+Results from the same two boards in Rust:
+
+17 Space board:
+- Trials: 7490288
+- Medium: **38 µs**
+- 10-quantiles: 34µs, 35µs, 36µs, 37µs, 38µs, 39µs, 40µs, 40µs, 44µs
+
+Blank board:
+- Trials: 256082
+- Medium: **1 106µs**
+- 10-quantiles: 1 053µs, 1 070µs, 1 078µs, 1 088µs, 1 106µs, 1 121µs,
+1 147µs, 1 186µs, 1 355µs
+
+### Limitations
+
+I have limited experience getting good information about the performance
+of a program. The programs were slightly modified so that the main
+function that solves a board was called multiple and the times taken
+recorded. I used Pythons `time.monotonic()` function from the
+[time module.](https://docs.python.org/3/library/time.html#time.monotonic)
+It may not be the correct way to time a function. The Rust version is
+similar.
+
+Each board was solved multiple times for 5 minutes, and the times taken
+recorded. I was also doing things in the background while I was doing
+this. This could have affected the results. However, the 90% quantile time
+(the time when 90% of times solved are less), is constantly 30ish% larger
+then the 10% quantile time, which goes against the idea the way it was run
+affected the times in a meaningful way, even if the way that the times
+were captured was wrong
+
+This isn't a fully fair comparison. In the Python version, after we guess
+and it's found we can't solve it, we don't try narrowing again. I believe
+this is the only difference, algorithmically, between the two programs.
+
+I also wrote the Python sudoku solver 2 to 3 years ago. Now I've got more
+programming experience, I might be able to go back and improve performance
+of the Python version. After writing it, I wrote the Rust version, so I
+would have had more time to think about the best algorithms for solving
+sudoku's.
+
+## Analysis
+
+### Performance
+
+The Rust version is clearly faster than the Python version. With solving
+the board with 17 spaces, the Python solver did it on average in `9 317µs`,
+but the Rust version takes only `38µs`. This makes the Rust version
+**245 times** faster!
+
+The blank board was also faster in Rust, but less pronounced. The Python
+version solved it in `43 512µs`, and the Rust version solved it in
+`1 106µs`. This makes it **39 times** faster.
+
+I'd take these values of ratio's with a grain of salt. Read the
+limitations section above.
+
+That the ratio between the two boards being different is interesting.
+Maybe it's because of the extra checks that the Rust version does for each
+guess, so each guess takes longer. They'd be good for the 17 board, where
+these extra checks may reveal extra information, but for the blank board
+they wouldn't help as much.
+
+These numbers are both different from the average ratio between Python and Rust found in the Paper
+[Energy Efficiency across Programming Languages, Marco Couto et all, 2017.](https://www.researchgate.net/publication/320436353_Energy_efficiency_across_programming_languages_how_do_energy_time_and_memory_relate)
+This paper found a ratio of 69 times on average between execution time in
+Python and Rust. I believe that the performance difference for each
+benchmark test that was run in the paper could change, so the ratio quoted
+here is an average.
+
+It's not surprising that Rust is faster then Python. Rust is compiled, and
+the compilation time wasn't included in the times above. Python is
+interpreted (or complied to bytecode then interpreted with the CPython
+version I have installed, I think), and this interpretation *is* included
+in the times recorded. 
+
+### Development time
+
+// Write up a bit about development time. Guess the python time. Also talk about ease of use, and how python is better
+
+// Finish with final words. Comparing python to rust like bike and airliner. One's eaier to go to paris with, but would be harder to go to the shop. Talk about strenges of each langauge
