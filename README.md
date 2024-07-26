@@ -225,8 +225,76 @@ interpreted (or complied to bytecode then interpreted with the CPython
 version I have installed, I think), and this interpretation *is* included
 in the times recorded. 
 
-### Development time
+### Ease of writing / development time
 
-// Write up a bit about development time. Guess the python time. Also talk about ease of use, and how python is better
+It has been a long time since writing the Sudoku solver in Python, so to
+compare the two languages here would be difficult.
 
-// Finish with final words. Comparing python to rust like bike and airliner. One's eaier to go to paris with, but would be harder to go to the shop. Talk about strenges of each langauge
+I found the Rust solver interesting to make. Rust is statically typed, and
+enforces a strict set of rules with it's borrow checker. This makes it
+more difficult to make something quickly that works. Although arguably it
+makes it easier to make something that works quickly
+
+Python meanwhile is a lot faster make make something in, and the
+development time is lower. You aren't required to deal with every error
+that could arise, and the dynamic type system is a lot more flexible. This
+means that it's easier to write the program then in Rust.
+
+You may look at the results for performance above and conclude that Rust
+is faster. However, this clearly doesn't include development time, which
+is often more important. Like, while the Rust version was 245 times better
+then the Python version, it's also only 0.009 seconds better. And if the
+Python version takes a few hours less to make, then we'd need to solve
+1000s of puzzles to make it worth it.
+
+If we're not making a service that
+solves any Sudoku given to it as fast as possible, but simply writing a
+script to solve it and then moving on to other projects, Python is
+perfect to make a script that understandable and just works.
+
+## Conclusion
+
+I wanted to make this project mainly to get experience with Rust, but also
+to have a little fun comparing Rust with Python.
+
+It's a slightly academic exercise however. Rust and Python are designed
+for completely different purposes. It's a bit like comparing a bicycle and
+a passenger airliner.
+
+The aircraft will be able to move a large amount of people at high speed
+over a long distance. It's going to be a lot harder to do that on a bike
+between London and Paris. On the other hand, if you've run out of some
+food and need to quickly pop down to the local shop, a bicycle would be a
+lot better for that short trip. I don't think most airliners would be very
+good at riding down a country road or a narrow city street.
+
+Yes, they're both methods of transportation, but they are not designed for
+the same use cases, and will be a lot better then the other in a lot of
+aspects. The same is true for programming languages.
+
+Rust emphasizes performance and reliability. It's designed so that the
+program you write runs as fast as it can, and deal with all the possible
+errors that could be encountered. It's borrow checker means that it can be
+memory safe and reliable without a garbage collector, improving
+performance. It's strict type system also allows it to run faster.
+
+These upsides come with downsides however. The type system and borrow
+checker can be difficult to work with, and require often reference to
+documentation to solve issues that are encountered. It's a awkward process
+that slows down development, and can make the program difficult to
+understand for people who don't have much experience in the language.
+
+Python is almost the opposite. It's readable, and easy to learn and work
+with. Types are extremely flexible. A list can contain numbers, strings,
+list, custom objects, and even a copy of itself. Python makes writing
+programs that just work easy. This, of course, comes with it's own
+downsides. It's slow (comparatively) to run, and not knowing exactly what
+type an object is can cause bugs.
+
+Both languages have strengths and weaknesses. One isn't "better" then the
+other, because they do different things. When selecting a programming
+language for a project, many things need to be considered. How valuable is
+the performance of the program? How costly is development time? Will this
+program need to be maintainable by someone who didn't write it?
+
+So, Rust is better then Python... and Python is better then Rust.
