@@ -1,11 +1,12 @@
-use std::{fs, io, time, env};
+// Clippy configurations
+#![allow(clippy::needless_return)]
 
-use rsudoku;
+use std::{env, fs, io, time};
+
 use rsudoku::SudokuBoard;
 
 /// Solve all the sudoku boards in the `boards` dir
 fn time_all_boards() -> io::Result<()> {
-
     let boards_result = fs::read_dir("boards");
     if boards_result.is_err() {
         let error = boards_result.err().unwrap();
@@ -15,25 +16,24 @@ fn time_all_boards() -> io::Result<()> {
             return io::Result::Ok(());
         };
 
-        return io::Result::Err(error); 
+        return io::Result::Err(error);
     }
 
     for board_entry in boards_result.unwrap() {
         if let io::Result::Ok(dir_entry) = board_entry {
             let start = time::Instant::now();
-            let board = rsudoku::solve(&dir_entry.path().to_str().unwrap());
+            let board = rsudoku::solve(dir_entry.path().to_str().unwrap());
 
             if board.is_ok() {
                 let solved = board.unwrap().is_solved();
 
                 let time_taken = start.elapsed();
 
-                let solved_string: String;
-                if solved {
-                    solved_string = String::from("Solved")
+                let solved_string: String = if solved {
+                    String::from("Solved")
                 } else {
-                    solved_string = String::from("Unsolveable")
-                }
+                    String::from("Unsolvable")
+                };
 
                 println!(
                     "{}\t{} in {}us",
@@ -41,7 +41,6 @@ fn time_all_boards() -> io::Result<()> {
                     solved_string,
                     time_taken.as_micros()
                 );
-
             } else {
                 eprintln!(
                     "Couldn't read {} due to {:?}",
@@ -50,7 +49,7 @@ fn time_all_boards() -> io::Result<()> {
                 )
             }
         } else {
-            eprintln!("Encounted error!");
+            eprintln!("Encountered error!");
         }
     }
 
@@ -72,7 +71,9 @@ fn time_solve(board_path: &str) -> io::Result<()> {
                 eprintln!("Can't find board at {board_path}");
                 return io::Result::Ok(());
             }
-            _ => {return io::Result::Err(error);}
+            _ => {
+                return io::Result::Err(error);
+            }
         }
     }
 
@@ -97,19 +98,17 @@ fn time_solve(board_path: &str) -> io::Result<()> {
     return io::Result::Ok(());
 }
 
-
+#[allow(dead_code)]
 fn time_single_board(path: &str) {
-
     const DELTA: time::Duration = time::Duration::from_secs(300);
 
     let start = time::Instant::now();
     let end = start + DELTA;
-    
+
     let mut times = Vec::new();
     let mut count = 0;
 
     while time::Instant::now() < end {
-
         let start_solve = time::Instant::now();
         let result = rsudoku::solve(path).unwrap();
         let dur = start_solve.elapsed();
@@ -140,21 +139,14 @@ fn time_single_board(path: &str) {
     println!("10-quantiles: {:?}", ten_quantiles);
 
     println!("Medium: {}", ten_quantiles[4]);
-
 }
 
 fn main() -> io::Result<()> {
-
-    time_single_board("boards/blank");
-    return io::Result::Ok(());
-
     let args: Vec<String> = env::args().collect();
 
     if args.len() == 1 {
         return time_all_boards();
-    }
-
-    else {
+    } else {
         return time_solve(args.get(1).unwrap());
     }
 }

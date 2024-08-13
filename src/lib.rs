@@ -1,3 +1,6 @@
+// Clippy configurations
+#![allow(clippy::needless_return)]
+
 use std::{cmp::Ordering, collections::VecDeque, fmt, fs, io};
 
 /// All of the results of removing a possible value from a space.
@@ -17,6 +20,7 @@ enum SudokuValueResult {
  * Known with a digit,
  * Unknown with a vector of possible tests
  */
+
 #[derive(PartialEq, Debug, Clone)]
 enum SudokuValue {
     Known(usize),
@@ -122,7 +126,7 @@ impl fmt::Display for SudokuValue {
                 write!(f, "{}", x)
             }
             Self::Unknown(_) => {
-                write!(f, "{}", 'X')
+                write!(f, "X")
             }
         }
     }
@@ -153,31 +157,27 @@ impl SudokuBoard {
         let mut empty_spaces = 0;
         let mut known_spaces = 0;
 
-        for charater in board_string.chars() {
+        for character in board_string.chars() {
             // Make a Sudoku value from a character
-            match SudokuValue::from(charater) {
-                Some(value) => {
-                    if value.is_known() {
-                        known_spaces += 1;
-                    } else {
-                        empty_spaces += 1;
-                    }
-
-                    if spaces.len() == row_index {
-                        spaces.push(Vec::with_capacity(9));
-                    }
-
-                    spaces[row_index].push(value);
-
-                    if spaces[row_index].len() == 9 {
-                        row_index += 1;
-                        if row_index == 9 {
-                            break;
-                        }
-                    }
+            if let Some(value) = SudokuValue::from(character) {
+                if value.is_known() {
+                    known_spaces += 1;
+                } else {
+                    empty_spaces += 1;
                 }
 
-                None => {}
+                if spaces.len() == row_index {
+                    spaces.push(Vec::with_capacity(9));
+                }
+
+                spaces[row_index].push(value);
+
+                if spaces[row_index].len() == 9 {
+                    row_index += 1;
+                    if row_index == 9 {
+                        break;
+                    }
+                }
             }
         }
 
@@ -250,7 +250,7 @@ impl SudokuBoard {
     ///
     /// May also change unknown spaces to known spaces, and also removes
     /// these values from adjectent spaces
-    fn inital_check(&mut self) -> Result<(), String> {
+    fn initial_check(&mut self) -> Result<(), String> {
         // Set self be initalised. This method only needs to be run once on each board
         self.initialized = true;
 
@@ -385,7 +385,7 @@ impl SudokuBoard {
             // If the value can now be known, add it to a vector to be checked later
             if let SudokuValueResult::ValueNowKnown = removed_result.unwrap() {
                 if let SudokuValue::Known(checked_known_value) = space_to_check {
-                    let owned_checked_known_value = checked_known_value.clone();
+                    let owned_checked_known_value = *checked_known_value;
 
                     self.fill_space(point_to_check, owned_checked_known_value)?;
                 }
@@ -404,8 +404,8 @@ impl SudokuBoard {
     /// Does the following tests:
     ///
     /// - Check each row, column, and box. If there's exactly one space
-    /// that can have a digit, fill in that digit. If zero places can have
-    /// that digit, return an error
+    ///   that can have a digit, fill in that digit. If zero places can have
+    ///   that digit, return an error
     ///
     /// Returns the number of new known spaces. Further narrowing may be
     /// done if the result is higher then zero
@@ -472,7 +472,6 @@ impl SudokuBoard {
     ///
     /// Returns Err if sudoku is unsolvable
     fn narrow_full(&mut self) -> Result<bool, String> {
-
         while self.narrow()? > 0 && !self.is_solved() {}
 
         return Result::Ok(self.is_solved());
@@ -566,18 +565,15 @@ impl SudokuBoard {
                             _ => {}
                         }
 
-                        match new_guess
+                        if new_guess
                             .possible_values_removed
                             .cmp(&best_guess.possible_values_removed)
+                            == Ordering::Greater
                         {
-                            Ordering::Greater => {
-                                // New guess removes more possible values then old guess
-                                best_guess = new_guess;
+                            // New guess removes more possible values then old guess
+                            best_guess = new_guess;
 
-                                continue;
-                            }
-
-                            _ => {} // New guess is no better then best guess
+                            continue;
                         }
                     }
                 }
@@ -597,16 +593,15 @@ impl SudokuBoard {
         // Preform some quick checks to fill in easy values and remove
         // possible values for each space
 
-        if !self.initialized {
-            if let Result::Err(_) = self.inital_check() {
-                return false;
-            }
+        if !self.initialized && self.initial_check().is_err() {
+            return false;
         }
+
         if self.is_solved() {
             return true;
         }
 
-        if let Result::Err(_) = self.narrow_full() {
+        if self.narrow_full().is_err() {
             return false;
         }
         if self.is_solved() {
@@ -614,7 +609,7 @@ impl SudokuBoard {
         }
 
         loop {
-            if let Result::Err(_) = self.narrow_full() {
+            if self.narrow_full().is_err() {
                 return false;
             }
             if self.is_solved() {
@@ -635,9 +630,10 @@ impl SudokuBoard {
                 }
             }
 
-            // The guess was wrong; remove it
+            // The guess didn't create a solvable board; remove it
             let result_of_removal = self.spaces[point.0][point.1].remove(guess_value);
 
+            // Remove was invalid
             if result_of_removal.is_err() {
                 return false;
             }
@@ -651,15 +647,6 @@ impl SudokuBoard {
                 if let SudokuValue::Known(point_new_value) = self.get_space(point) {
                     if self.fill_space(point, *point_new_value).is_err() {
                         // Filling in the space resulted in an unsolvable sudoku
-                        return false;
-                    }
-
-                    if self.is_solved() {
-                        return true;
-                    }
-
-                    // Do more algorithmic removing
-                    if self.narrow_full().is_err() {
                         return false;
                     }
 
